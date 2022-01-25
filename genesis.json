@@ -125,7 +125,7 @@
     },
     "gravity": {
       "params": {
-        "gravity_id": "umee-mainnet",
+        "gravity_id": "umee-1",
         "contract_source_hash": "",
         "bridge_ethereum_address": "0x0000000000000000000000000000000000000000",
         "bridge_chain_id": "1",
