@@ -5,7 +5,7 @@
   "consensus_params": {
     "block": {
       "max_bytes": "22020096",
-      "max_gas": "-1",
+      "max_gas": "120000000",
       "time_iota_ms": "1000"
     },
     "evidence": {
@@ -227,10 +227,10 @@
       },
       "params": {
         "mint_denom": "uumee",
-        "inflation_rate_change": "1.000000000000000000",
-        "inflation_max": "0.200000000000000000",
+        "inflation_rate_change": "2.000000000000000000",
+        "inflation_max": "0.140000000000000000",
         "inflation_min": "0.070000000000000000",
-        "goal_bonded": "0.670000000000000000",
+        "goal_bonded": "0.330000000000000000",
         "blocks_per_year": "4360000"
       }
     },
@@ -239,9 +239,9 @@
       "params": {
         "signed_blocks_window": "10000",
         "min_signed_per_window": "0.500000000000000000",
-        "downtime_jail_duration": "86400s",
+        "downtime_jail_duration": "600s",
         "slash_fraction_double_sign": "0.050000000000000000",
-        "slash_fraction_downtime": "0.010000000000000000"
+        "slash_fraction_downtime": "0.000100000000000000"
       },
       "signing_infos": [],
       "missed_blocks": []
