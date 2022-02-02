@@ -37,10 +37,10 @@ func GenerateAccount(
 
 	// convert the given token allocation in umee to the base denom uumee
 	convertedAmt := new(big.Int).Mul(amt, uumeeExponent)
-
 	tokenAlloc := sdk.NewIntFromBigInt(convertedAmt)
-	baseAcc := authtypes.NewBaseAccount(addr, nil, 0, 0)
 	coins := sdk.NewCoins(sdk.NewCoin(umeeapp.BondDenom, tokenAlloc)).Sort()
+
+	baseAcc := authtypes.NewBaseAccount(addr, nil, 0, 0)
 	balance := banktypes.Balance{
 		Address: addr.String(),
 		Coins:   coins,
