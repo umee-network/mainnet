@@ -35,7 +35,10 @@ func GenerateAccount(
 		return nil, banktypes.Balance{}, fmt.Errorf("failed to parse token allocation amount: %s", tokenAllocStr)
 	}
 
-	tokenAlloc := sdk.NewIntFromBigInt(amt.Mul(amt, uumeeExponent))
+	// convert the given token allocation in umee to the base denom uumee
+	convertedAmt := new(big.Int).Mul(amt, uumeeExponent)
+
+	tokenAlloc := sdk.NewIntFromBigInt(convertedAmt)
 	baseAcc := authtypes.NewBaseAccount(addr, nil, 0, 0)
 	coins := sdk.NewCoins(sdk.NewCoin(umeeapp.BondDenom, tokenAlloc)).Sort()
 	balance := banktypes.Balance{
