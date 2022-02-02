@@ -26,7 +26,12 @@ func main() {
 	cmd := &cobra.Command{
 		Use:   "generate-accounts [genesis-file] [accounts-path]",
 		Args:  cobra.ExactArgs(2),
-		Short: "Generate a mainnet genesis account",
+		Short: "Generate mainnet accounts from a series of exported account CSV documents.",
+		Long: `Generate mainnet accounts from a series of exported account CSV documents.
+		
+Each account is added to the input genesis file, updating both auth and bank genesis
+state. An optional output flag may be supplied to create a new genesis file instead
+of updating the provided one.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			encCfg := umeeapp.MakeEncodingConfig()
 			cdc := encCfg.Marshaler
