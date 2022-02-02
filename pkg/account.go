@@ -66,7 +66,11 @@ func GenerateAccount(
 		genAccount = baseAcc
 
 	default:
-		return nil, banktypes.Balance{}, fmt.Errorf("unsupported account parameters: TODO...")
+		err = fmt.Errorf(
+			"unsupported account parameters; address: %s, cliff: %d, vesting: %d",
+			addrStr, cliff, vesting,
+		)
+		return nil, banktypes.Balance{}, err
 	}
 
 	return genAccount, balance, nil
