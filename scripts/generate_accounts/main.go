@@ -57,7 +57,7 @@ of updating the provided one.`,
 					return err
 				}
 
-				if !info.IsDir() {
+				if !info.IsDir() && strings.Contains(info.Name(), ".csv") {
 					files = append(files, path)
 				}
 
@@ -85,8 +85,9 @@ of updating the provided one.`,
 					vestingStr := r[5]
 
 					if len(addrStr) == 0 {
-						fmt.Printf("Skipping account: %s\n", id)
-						continue
+						return fmt.Errorf("Account address missing: %s", id)
+						// fmt.Printf("Skipping account: %s\n", id)
+						// continue
 					}
 
 					cliff, err := strconv.Atoi(cliffStr)
