@@ -12,8 +12,7 @@ import (
 )
 
 var (
-	uumeeExponent   int64 = 1_000_000
-	totalSupplyDiff int64 = 0
+	uumeeExponent int64 = 1_000_000
 )
 
 // GenerateAccount generates a genesis account given various vesting parameters.
@@ -36,14 +35,6 @@ func GenerateAccount(
 
 	// convert the given token allocation in umee to the base denom uumee
 	baseTokenAlloc := tokenAlloc.MulInt64(uumeeExponent).TruncateInt()
-
-	// We require an expected total supply of 10B. However, due to truncation of
-	// tiny amounts, e.g .33 uumee, the total supply might be slightly off from
-	// the 10B target. So we add the remainder to one of the foundation's multisig
-	// accounts, umee1pn8x9rv4823cgwmyh07z230mllg2prdxku97c7.
-	if addr.String() == "umee1pn8x9rv4823cgwmyh07z230mllg2prdxku97c7" {
-		// baseTokenAlloc = baseTokenAlloc.AddRaw(totalSupplyDiff)
-	}
 
 	coins := sdk.NewCoins(sdk.NewCoin(umeeapp.BondDenom, baseTokenAlloc)).Sort()
 	baseAcc := authtypes.NewBaseAccount(addr, nil, 0, 0)

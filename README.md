@@ -7,5 +7,5 @@ To generate accounts from the token distribution CSV to an updated genesis file,
 execute the following:
 
 ```shell
-$ go run scripts/generate_accounts/main.go ./base_genesis.json data/umee_token_distribution.csv -o genesis.json
+$ go run scripts/generate_accounts/main.go ./base_genesis.json data/umee_token_distribution_final.csv -o genesis.json
 ```
