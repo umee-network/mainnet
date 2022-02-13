@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -24,10 +23,10 @@ var (
 
 func main() {
 	cmd := &cobra.Command{
-		Use:   "generate-accounts [genesis-file] [accounts-path]",
+		Use:   "generate-accounts [genesis-file] [token-distribution-file]",
 		Args:  cobra.ExactArgs(2),
-		Short: "Generate mainnet accounts from a series of exported account CSV documents.",
-		Long: `Generate mainnet accounts from a series of exported account CSV documents.
+		Short: "Generate mainnet accounts from a token distribution CSV document.",
+		Long: `Generate mainnet accounts from a token distribution CSV document.
 		
 Each account is added to the input genesis file, updating both auth and bank genesis
 state. An optional output flag may be supplied to create a new genesis file instead
@@ -51,82 +50,61 @@ of updating the provided one.`,
 
 			bankGenState := banktypes.GetGenesisStateFromAppState(cdc, appState)
 
-			var files []string
-			err = filepath.Walk(args[1], func(path string, info os.FileInfo, err error) error {
+			records, err := readCSV(args[1])
+			if err != nil {
+				return fmt.Errorf("failed to parse account file CSV: %w", err)
+			}
+
+			for i, row := range records[1:] { // skip the header row
+				addrStr := row[1]
+				tokenAllocStr := sanitizeTokenAlloc(row[2])
+				cliffStr := row[3]
+				vestingStr := row[4]
+
+				fmt.Printf("Importing account %d (%s)\n", i, addrStr)
+
+				// Some records have "  -   " as the cliff, which we interpret as a zero
+				// cliff period.
+				if strings.Contains(cliffStr, "-") {
+					cliffStr = "0"
+				}
+
+				cliff, err := strconv.Atoi(cliffStr)
+				if err != nil {
+					return fmt.Errorf("failed to parse vesting cliff (%s): %w", cliffStr, err)
+				}
+
+				vesting, err := strconv.Atoi(vestingStr)
+				if err != nil {
+					return fmt.Errorf("failed to parse vesting (%s): %w", vestingStr, err)
+				}
+
+				genAcc, balance, err := pkg.GenerateAccount(addrStr, tokenAllocStr, genDoc.GenesisTime, cliff, vesting)
 				if err != nil {
 					return err
 				}
 
-				if !info.IsDir() && strings.Contains(info.Name(), ".csv") {
-					files = append(files, path)
+				if genAccounts.Contains(genAcc.GetAddress()) {
+					return fmt.Errorf("address already exists in genesis state: %s", genAcc.GetAddress())
 				}
 
-				return nil
-			})
+				// Add the new account to the set of genesis accounts and sanitize the
+				// accounts afterwards.
+				genAccounts = append(genAccounts, genAcc)
+				genAccounts = authtypes.SanitizeGenesisAccounts(genAccounts)
+
+				// update bank balances and total supply
+				bankGenState.Balances = append(bankGenState.Balances, balance)
+				bankGenState.Balances = banktypes.SanitizeGenesisBalances(bankGenState.Balances)
+				bankGenState.Supply = bankGenState.Supply.Add(balance.Coins...)
+			}
+
+			packedGenAccounts, err := authtypes.PackAccounts(genAccounts)
 			if err != nil {
-				return fmt.Errorf("failed to collect account files")
+				return fmt.Errorf("failed to Proto convert account: %w", err)
 			}
 
-			// iterate over all data files containing account information
-			for _, f := range files {
-				fmt.Printf("Generate accounts from: %s\n", f)
-
-				records, err := readCSV(f)
-				if err != nil {
-					return fmt.Errorf("failed to parse account file CSV: %w", err)
-				}
-
-				// only consider account records (ignoring meta records)
-				for _, r := range collectRecords(records) {
-					id := r[0]
-					tokenAllocStr := sanitizeTokenAlloc(r[1])
-					addrStr := r[3]
-					cliffStr := r[4]
-					vestingStr := r[5]
-
-					if len(addrStr) == 0 {
-						return fmt.Errorf("Account address missing: %s", id)
-						// fmt.Printf("Skipping account: %s\n", id)
-						// continue
-					}
-
-					cliff, err := strconv.Atoi(cliffStr)
-					if err != nil {
-						return fmt.Errorf("failed to parse vesting cliff (%s): %w", cliffStr, err)
-					}
-
-					vesting, err := strconv.Atoi(vestingStr)
-					if err != nil {
-						return fmt.Errorf("failed to parse vesting (%s): %w", vestingStr, err)
-					}
-
-					genAcc, balance, err := pkg.GenerateAccount(addrStr, tokenAllocStr, genDoc.GenesisTime, cliff, vesting)
-					if err != nil {
-						return err
-					}
-
-					if genAccounts.Contains(genAcc.GetAddress()) {
-						return fmt.Errorf("address already exists in genesis state: %s", genAcc.GetAddress())
-					}
-
-					// Add the new account to the set of genesis accounts and sanitize the
-					// accounts afterwards.
-					genAccounts = append(genAccounts, genAcc)
-					genAccounts = authtypes.SanitizeGenesisAccounts(genAccounts)
-
-					packedGenAccounts, err := authtypes.PackAccounts(genAccounts)
-					if err != nil {
-						return fmt.Errorf("failed to Proto convert account: %w", err)
-					}
-
-					authGenState.Accounts = packedGenAccounts
-
-					// update bank balances and total supply
-					bankGenState.Balances = append(bankGenState.Balances, balance)
-					bankGenState.Balances = banktypes.SanitizeGenesisBalances(bankGenState.Balances)
-					bankGenState.Supply = bankGenState.Supply.Add(balance.Coins...)
-				}
-			}
+			authGenState.Accounts = packedGenAccounts
 
 			// update auth genesis state
 			bz, err := cdc.MarshalJSON(&authGenState)
@@ -185,29 +163,10 @@ func readCSV(file string) ([][]string, error) {
 	return lines, nil
 }
 
-func collectRecords(records [][]string) [][]string {
-	var addressRecords [][]string
-
-	var idx int
-	for i, r := range records {
-		if strings.EqualFold(r[0], "ID Label") {
-			idx = i
-			break
-		}
-	}
-
-	for _, r := range records[idx:] {
-		if len(r[0]) == 0 || strings.EqualFold(r[0], "ID Label") {
-			// skip empty or header rows
-			continue
-		}
-
-		addressRecords = append(addressRecords, r)
-	}
-
-	return addressRecords
-}
-
+// sanitizeTokenAlloc removes all ',' and whitspace characters from the input
+// token allocation string.
 func sanitizeTokenAlloc(s string) string {
-	return strings.Replace(s, ",", "", -1)
+	s = strings.Replace(s, ",", "", -1)
+	s = strings.TrimSpace(s)
+	return s
 }
