@@ -2,7 +2,6 @@ package pkg
 
 import (
 	"fmt"
-	"math/big"
 	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -13,7 +12,7 @@ import (
 )
 
 var (
-	uumeeExponent = big.NewInt(1_000_000)
+	uumeeExponent int64 = 1_000_000
 )
 
 // GenerateAccount generates a genesis account given various vesting parameters.
@@ -29,17 +28,15 @@ func GenerateAccount(
 		return nil, banktypes.Balance{}, fmt.Errorf("failed to convert address (%s): %w", addrStr, err)
 	}
 
-	amt := new(big.Int)
-	amt, ok := amt.SetString(tokenAllocStr, 10)
-	if !ok {
+	tokenAlloc, err := sdk.NewDecFromStr(tokenAllocStr)
+	if err != nil {
 		return nil, banktypes.Balance{}, fmt.Errorf("failed to parse token allocation amount: %s", tokenAllocStr)
 	}
 
 	// convert the given token allocation in umee to the base denom uumee
-	convertedAmt := new(big.Int).Mul(amt, uumeeExponent)
-	tokenAlloc := sdk.NewIntFromBigInt(convertedAmt)
-	coins := sdk.NewCoins(sdk.NewCoin(umeeapp.BondDenom, tokenAlloc)).Sort()
+	baseTokenAlloc := tokenAlloc.MulInt64(uumeeExponent).TruncateInt()
 
+	coins := sdk.NewCoins(sdk.NewCoin(umeeapp.BondDenom, baseTokenAlloc)).Sort()
 	baseAcc := authtypes.NewBaseAccount(addr, nil, 0, 0)
 	balance := banktypes.Balance{
 		Address: addr.String(),
@@ -60,6 +57,13 @@ func GenerateAccount(
 		// linearly over 'vesting' months.
 		endTime := genesisTime.AddDate(0, vesting, 0)
 		genAccount = authvesting.NewContinuousVestingAccount(baseAcc, coins, genesisTime.Unix(), endTime.Unix())
+
+	case cliff > 0 && vesting == 0:
+		// Create a vesting account with a cliff only, i.e. the total balance is
+		// vesting for the entire duration of the cliff and then immediately become
+		// vested after the cliff.
+		endTime := genesisTime.AddDate(0, cliff, 0)
+		genAccount = authvesting.NewDelayedVestingAccount(baseAcc, coins, endTime.Unix())
 
 	case cliff == 0 && vesting == 0:
 		// create a normal non-vesting account
