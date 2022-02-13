@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"fmt"
+	"math/big"
 	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -12,7 +13,7 @@ import (
 )
 
 var (
-	uumeeExponent int64 = 1_000_000
+	uumeeExponent = big.NewInt(1_000_000)
 )
 
 // GenerateAccount generates a genesis account given various vesting parameters.
@@ -28,13 +29,14 @@ func GenerateAccount(
 		return nil, banktypes.Balance{}, fmt.Errorf("failed to convert address (%s): %w", addrStr, err)
 	}
 
-	tokenAlloc, err := sdk.NewDecFromStr(tokenAllocStr)
-	if err != nil {
+	tokenAlloc, ok := new(big.Int).SetString(tokenAllocStr, 10)
+	if !ok {
 		return nil, banktypes.Balance{}, fmt.Errorf("failed to parse token allocation amount: %s", tokenAllocStr)
 	}
 
 	// convert the given token allocation in umee to the base denom uumee
-	baseTokenAlloc := tokenAlloc.MulInt64(uumeeExponent).TruncateInt()
+	convertedAmt := new(big.Int).Mul(tokenAlloc, uumeeExponent)
+	baseTokenAlloc := sdk.NewIntFromBigInt(convertedAmt)
 
 	coins := sdk.NewCoins(sdk.NewCoin(umeeapp.BondDenom, baseTokenAlloc)).Sort()
 	baseAcc := authtypes.NewBaseAccount(addr, nil, 0, 0)
