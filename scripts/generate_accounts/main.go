@@ -56,10 +56,10 @@ of updating the provided one.`,
 			}
 
 			for i, row := range records[1:] { // skip the header row
-				addrStr := row[1]
-				tokenAllocStr := sanitizeTokenAlloc(row[2])
-				cliffStr := row[3]
-				vestingStr := row[4]
+				addrStr := row[0]
+				tokenAllocStr := sanitizeTokenAlloc(row[1])
+				cliffStr := row[2]
+				vestingStr := row[3]
 
 				fmt.Printf("Importing account %d (%s)\n", i, addrStr)
 
